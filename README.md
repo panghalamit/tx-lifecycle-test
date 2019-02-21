@@ -95,6 +95,22 @@ Miner Listens to new tx events
     * fetches all pending tx from pool, separates into local and remote
     * first commits local txs and then remote (each ordered by tx fees and nonce)
 
+
+#### Scenario2
+
+Sending multiple transactions from a single account with gap between nonces.
+
+* Txs will be added to future queue, won't be promoted unless transaction with gap nonces are sent.
+* Txs with nonces too far in future will be rejected
+
+#### Scenario3
+
+Sending multiple transactions from different accounts. 
+
+* Sending tx with different gas prices to see order in which transactions are mined
+* To make sure all txs are not included in single block, play with block gasLimit or timeout which determines the wait a miner does for a new tx before committing to current snapshot for mining.
+
+
 ### References
 
 * [Go Ethereum](https://github.com/ethereum/go-ethereum)
