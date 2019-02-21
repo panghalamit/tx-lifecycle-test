@@ -11,10 +11,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts"
-	"github.com/ethereum/go-ethereum/accounts/keystore"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/panghalamit/go-ethereum/accounts"
+	"github.com/panghalamit/go-ethereum/accounts/keystore"
+	"github.com/panghalamit/go-ethereum/core/types"
+	"github.com/panghalamit/go-ethereum/ethclient"
 )
 
 // ImportKsAccount imports accounts into keystore given path to account's file
