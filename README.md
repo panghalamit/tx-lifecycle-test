@@ -57,6 +57,44 @@ $ ./tx-lifecycle-test http://localhost:8501 test-accounts
 
 ```
 
+### Test Scenarios
+
+#### Scenario1
+
+Sending a simple valid transaction to the client from one of the test account.
+Transation sent is simple eth transfer transaction.  Rpc is used to communicate, here is set of functions transactions go through before mined.
+
+At Node for which given transaction local, i.e., received directly via rpc call by client.
+
+* Transaction is received at SendTx function in eth/api-backend.go 
+* Transaction is sent to pool via addLocal(tx) in core/tx_pool.go
+* internal addTx(tx,isLocal) is called. islocal determines the pricing constraints for tx
+* internal add(tx, isLocal) is called, with a lock on pool object
+  * return if tx is already in pool
+* Basic validation (validateTx in core/tx_pool.go)  
+  * check for size
+  * negative value check
+  * gasLimit check against block gasLimit (tx's gas can't be greater than block's limit)
+  * signature validity check
+  * gas price check of non-local tx
+  * nonce check (can't be lower that current nonce of sender)
+  * enough funds check
+  * intrinsic gas check
+* if basic validation passes and tx_pool is full, remove underpriced tx to make space for this.
+* if tx replaces a pending tx (tx which can be processed given current state, i.e., given nonce is already in pending list), remove old, add this tx
+* Notify subscribers that new tx is added to pending list
+* tx isn't replacing a pending tx, enqueue to future queue using (enqueueTx in core/tx_pool.go)
+  * add to queue if tx is new or better than older tx
+* add to disk journal if tx is local
+* Run promotion check for transactions from sender, if they can be moved to pending list
+
+Miner Listens to new tx events
+* on receiving a new txEvent at (miner/worker.go->mainLoop())
+  * commit and update if not mining (miner/worker.go -> commitTransactions)
+  * commit new work if mining (miner/worker.go -> commitNewWork)
+    * fetches all pending tx from pool, separates into local and remote
+    * first commits local txs and then remote (each ordered by tx fees and nonce)
+
 ### References
 
 * [Go Ethereum](https://github.com/ethereum/go-ethereum)
