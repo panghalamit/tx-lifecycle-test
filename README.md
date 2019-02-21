@@ -57,4 +57,9 @@ $ ./tx-lifecycle-test http://localhost:8501 test-accounts
 
 ```
 
+### References
+
+* [Go Ethereum](https://github.com/ethereum/go-ethereum)
+* [Go Ethereum Book](https://goethereumbook.org/en/)
+* [Hackernoon post on setting up private node](https://hackernoon.com/setup-your-own-private-proof-of-authority-ethereum-network-with-geth-9a0a3750cda8)
 
