@@ -68,7 +68,7 @@ func CreateTransaction(ks *keystore.KeyStore, sender *accounts.Account, receiver
 
 // Scenario1 sends a single transaction from a account
 func Scenario1(cl *ethclient.Client, acclist []*accounts.Account, ks *keystore.KeyStore) {
-	fmt.Printf("Scenario1 : Sending a single transfer transaction")
+	fmt.Printf("\n -------------------------Scenario1 : Sending a single transfer transaction-------------------------\n")
 	sender := acclist[0]
 	receiver := acclist[1]
 	nonce, err1 := cl.PendingNonceAt(context.Background(), sender.Address)
@@ -115,7 +115,7 @@ func Scenario1(cl *ethclient.Client, acclist []*accounts.Account, ks *keystore.K
 
 // Scenario2 sends multiple transactions from a accounts with random nonce gap
 func Scenario2(cl *ethclient.Client, acclist []*accounts.Account, ks *keystore.KeyStore) {
-	fmt.Printf("Scenario2 : Sending multiple transfer transactions with gap in nonce values")
+	fmt.Printf("\n-------------------------Scenario2 : Sending multiple transfer transactions with gap in nonce values-------------------------\n")
 	sender := acclist[2]
 	receiver := acclist[0]
 	rand.Seed(time.Now().UTC().UnixNano())
@@ -163,7 +163,7 @@ func Scenario2(cl *ethclient.Client, acclist []*accounts.Account, ks *keystore.K
 
 // Scenario3 sends multiple transactions from multiple accounts
 func Scenario3(cl *ethclient.Client, acclist []*accounts.Account, ks *keystore.KeyStore) {
-	fmt.Printf("Scenario3 : Sending multiple transfer transactions from different accounts")
+	fmt.Printf("\n-------------------------Scenario3 : Sending multiple transfer transactions from different accounts-------------------------\n")
 	rand.Seed(time.Now().UTC().UnixNano())
 	for i := 0; i < 30; i++ {
 		sender := acclist[rand.Intn(len(acclist))]
