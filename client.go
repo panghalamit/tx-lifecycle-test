@@ -17,6 +17,8 @@ import (
 	"github.com/panghalamit/go-ethereum/ethclient"
 )
 
+const ()
+
 // ImportKsAccount imports accounts into keystore given path to account's file
 func ImportKsAccount(ks *keystore.KeyStore, pathToAccount string) (*accounts.Account, error) {
 	jsonBytes, err := ioutil.ReadFile(pathToAccount)
@@ -119,72 +121,112 @@ func Scenario2(cl *ethclient.Client, acclist []*accounts.Account, ks *keystore.K
 	sender := acclist[2]
 	receiver := acclist[0]
 	rand.Seed(time.Now().UTC().UnixNano())
+	nonce, err1 := cl.PendingNonceAt(context.Background(), sender.Address)
+	if err1 != nil {
+		log.Fatal(err1)
+	}
+	chainID, err2 := cl.NetworkID(context.Background())
+	if err2 != nil {
+		log.Fatal(err2)
+	}
+	value := big.NewInt(1000000000000000000)
+	gasLimit := uint64(21000)
+	gasPrice, err3 := cl.SuggestGasPrice(context.Background())
+	var data []byte
+	if err3 != nil {
+		log.Fatal(err3)
+	}
 	for i := 0; i < 10; i++ {
-		nonce, err1 := cl.PendingNonceAt(context.Background(), sender.Address)
-		if err1 != nil {
-			log.Fatal(err1)
-		}
-		nonce += uint64(1)
-		value := big.NewInt(1000000000000000000)
-		value = value.Mul(value, big.NewInt(rand.Int63n(10)))
-		gasLimit := uint64(21000)
-		gasPrice, err3 := cl.SuggestGasPrice(context.Background())
 		toss := rand.Float32()
 		if toss < 0.3 {
 			gasPrice = big.NewInt(2)
 		} else if toss > 0.7 {
 			gasPrice = big.NewInt(3)
 		}
-		if err3 != nil {
-			log.Fatal(err3)
-		}
 		fmt.Printf("Gas price %v\n", gasPrice)
-		chainID, err4 := cl.NetworkID(context.Background())
+		fmt.Printf("ChainId = %v\n", chainID)
+		signedTx, err4 := CreateTransaction(ks, sender, receiver, "", nonce+uint64(i+1), value, data, gasPrice, gasLimit, chainID)
 		if err4 != nil {
 			log.Fatal(err4)
 		}
-		fmt.Printf("ChainId = %v\n", chainID)
-		var data []byte
-		signedTx, err5 := CreateTransaction(ks, sender, receiver, "", nonce, value, data, gasPrice, gasLimit, chainID)
-		if err5 != nil {
-			log.Fatal(err5)
-		}
 		fmt.Printf("Signed transaction successfully :%v \n", signedTx.Hash().Hex())
-		err6 := cl.SendTransaction(context.Background(), signedTx)
+		err5 := cl.SendTransaction(context.Background(), signedTx)
 
-		if err6 != nil {
-			fmt.Println(err6)
+		if err5 != nil {
+			fmt.Println(err5)
 			//log.Fatal(err6)
 		} else {
-			fmt.Printf("tx sent with hash: %s, nonce: %v, value: %v\n", signedTx.Hash().Hex(), nonce, value)
+			fmt.Printf("tx sent with hash: %s, nonce: %v, value: %v\n", signedTx.Hash().Hex(), nonce+uint64(i+1), value)
 		}
 	}
+	/*
+		// get latest block
+		currBlockHeader, err6 := cl.HeaderByNumber(context.Background(), nil)
+		if err6 != nil {
+			fmt.Println(err6)
+			return
+		}
+		blockNumber = currBlockHeader.Nonce.Uint64()
+
+		fmt.Printf("Using block height as timeout to send rescue Tx (Tx with gap value as nonce)\n")
+		for curr := blockNumber; curr < blockNumber+2; {
+			// get latest block
+			currBlockHeader, err6 = cl.HeaderByNumber(context.Background(), nil)
+			if err6 != nil {
+				fmt.Println(err6)
+				return
+			}
+			curr = currBlockHeader.Nonce.Uint64()
+			fmt.Printf("Block height %v \n", curr)
+			time.Sleep(15 * time.Second)
+		}*/
+	// fix this, ugly: block time in seconds (block height solution not working)
+	// wait for 3 block times before sending rescue tx
+	time.Sleep(time.Second * 3 * 15)
+	signedRescueTx, err7 := CreateTransaction(ks, sender, receiver, "", nonce, value, data, gasPrice, gasLimit, chainID)
+	if err7 != nil {
+		log.Fatal(err7)
+	}
+	fmt.Printf("Signed transaction successfully :%v \n", signedRescueTx.Hash().Hex())
+	err8 := cl.SendTransaction(context.Background(), signedRescueTx)
+	if err8 != nil {
+		log.Fatal(err8)
+	} else {
+		fmt.Printf("Rescue tx with pending nonce sent with hash: %s, nonce: %v, value: %v\n", signedRescueTx.Hash().Hex(), nonce, value)
+	}
+
 }
 
 // Scenario3 sends multiple transactions from multiple accounts
 func Scenario3(cl *ethclient.Client, acclist []*accounts.Account, ks *keystore.KeyStore) {
 	fmt.Printf("\n-------------------------Scenario3 : Sending multiple transfer transactions from different accounts-------------------------\n")
+	//set the same value in txpool.accountslots
+	minExecutablesPerAccount := uint32(10)
+	maxExecutablesTotal := uint32(10)
+
 	rand.Seed(time.Now().UTC().UnixNano())
-	for i := 0; i < 30; i++ {
-		sender := acclist[rand.Intn(len(acclist))]
-		receiver := acclist[rand.Intn(len(acclist))]
+	value := big.NewInt(1000000000000000000)
+	gasLimit := uint64(21000)
+	gasPrice, err3 := cl.SuggestGasPrice(context.Background())
+	if err3 != nil {
+		log.Fatal(err3)
+	}
+	toss := rand.Float32()
+	if toss < 0.3 {
+		gasPrice = big.NewInt(2)
+	} else if toss > 0.7 {
+		gasPrice = big.NewInt(3)
+	}
+	countExecutable := make([]uint32, len(acclist))
+	countTotalExecutables := uint32(0)
+
+	for i := uint32(0); i < 4*maxExecutablesTotal; i++ {
+		j := rand.Intn(len(acclist))
+		sender := acclist[j]
+		receiver := acclist[(j+1)%len(acclist)]
 		nonce, err1 := cl.PendingNonceAt(context.Background(), sender.Address)
 		if err1 != nil {
 			log.Fatal(err1)
-		}
-		//nonce += uint64(4 * rand.Float64())
-		value := big.NewInt(1000000000000000000)
-		value = value.Mul(value, big.NewInt(rand.Int63n(10)))
-		gasLimit := uint64(21000)
-		gasPrice, err3 := cl.SuggestGasPrice(context.Background())
-		toss := rand.Float32()
-		if toss < 0.3 {
-			gasPrice = big.NewInt(2)
-		} else if toss > 0.7 {
-			gasPrice = big.NewInt(3)
-		}
-		if err3 != nil {
-			log.Fatal(err3)
 		}
 		fmt.Printf("Gas price %v\n", gasPrice)
 		chainID, err4 := cl.NetworkID(context.Background())
@@ -203,8 +245,18 @@ func Scenario3(cl *ethclient.Client, acclist []*accounts.Account, ks *keystore.K
 			fmt.Println(err6)
 			//log.Fatal(err6)
 		} else {
+			countExecutable[j]++
+			countTotalExecutables++
 			fmt.Printf("tx sent with hash: %s, nonce: %v, value: %v\n", signedTx.Hash().Hex(), nonce, value)
+			if countTotalExecutables > maxExecutablesTotal {
+				for ind, val := range countExecutable {
+					if val > minExecutablesPerAccount {
+						fmt.Printf("Txs from Account %v might get demoted\n", acclist[ind].Address.Hex())
+					}
+				}
+			}
 		}
+
 	}
 }
 
