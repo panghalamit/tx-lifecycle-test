@@ -159,30 +159,28 @@ func Scenario2(cl *ethclient.Client, acclist []*accounts.Account, ks *keystore.K
 			fmt.Printf("tx sent with hash: %s, nonce: %v, value: %v\n", signedTx.Hash().Hex(), nonce+uint64(i+1), value)
 		}
 	}
-	/*
+
+	// get latest block
+	currBlockHeader, err6 := cl.HeaderByNumber(context.Background(), nil)
+	if err6 != nil {
+		fmt.Println(err6)
+		return
+	}
+	blockNumber := currBlockHeader.Number.Uint64()
+
+	fmt.Printf("Using block height as timeout to send rescue Tx (Tx with gap value as nonce)\n")
+	for curr := blockNumber; curr < blockNumber+2; {
 		// get latest block
-		currBlockHeader, err6 := cl.HeaderByNumber(context.Background(), nil)
+		currBlockHeader, err6 = cl.HeaderByNumber(context.Background(), nil)
 		if err6 != nil {
 			fmt.Println(err6)
 			return
 		}
-		blockNumber = currBlockHeader.Nonce.Uint64()
-
-		fmt.Printf("Using block height as timeout to send rescue Tx (Tx with gap value as nonce)\n")
-		for curr := blockNumber; curr < blockNumber+2; {
-			// get latest block
-			currBlockHeader, err6 = cl.HeaderByNumber(context.Background(), nil)
-			if err6 != nil {
-				fmt.Println(err6)
-				return
-			}
-			curr = currBlockHeader.Nonce.Uint64()
-			fmt.Printf("Block height %v \n", curr)
-			time.Sleep(15 * time.Second)
-		}*/
-	// fix this, ugly: block time in seconds (block height solution not working)
+		curr = currBlockHeader.Number.Uint64()
+		fmt.Printf("Block height %v \n", curr)
+		time.Sleep(15 * time.Second)
+	}
 	// wait for 3 block times before sending rescue tx
-	time.Sleep(time.Second * 3 * 15)
 	signedRescueTx, err7 := CreateTransaction(ks, sender, receiver, "", nonce, value, data, gasPrice, gasLimit, chainID)
 	if err7 != nil {
 		log.Fatal(err7)
@@ -200,40 +198,39 @@ func Scenario2(cl *ethclient.Client, acclist []*accounts.Account, ks *keystore.K
 // Scenario3 sends multiple transactions from multiple accounts
 func Scenario3(cl *ethclient.Client, acclist []*accounts.Account, ks *keystore.KeyStore) {
 	fmt.Printf("\n-------------------------Scenario3 : Sending multiple transfer transactions from different accounts-------------------------\n")
-	//set the same value in txpool.accountslots
-	minExecutablesPerAccount := uint32(10)
-	maxExecutablesTotal := uint32(10)
+	//set the same value in txpool config
+	minExecutablesPerAccount := uint32(5)
+	maxExecutablesTotal := uint32(14)
+	maxNonExecutablesPerAccount := uint32(5)
+	maxNonExecutablesTotal := uint32(14)
 
-	rand.Seed(time.Now().UTC().UnixNano())
-	value := big.NewInt(1000000000000000000)
-	gasLimit := uint64(21000)
+	fmt.Printf("Testing for txpool config values as, accountslots : %v, globalslots : %v, accountqueue : %v, globalqueue : %v  \n", minExecutablesPerAccount, maxExecutablesTotal, maxNonExecutablesPerAccount, maxNonExecutablesTotal)
 	gasPrice, err3 := cl.SuggestGasPrice(context.Background())
 	if err3 != nil {
 		log.Fatal(err3)
 	}
+	chainID, err4 := cl.NetworkID(context.Background())
+	if err4 != nil {
+		log.Fatal(err4)
+	}
+	fmt.Printf("ChainId = %v\n", chainID)
 	toss := rand.Float32()
 	if toss < 0.3 {
 		gasPrice = big.NewInt(2)
 	} else if toss > 0.7 {
 		gasPrice = big.NewInt(3)
 	}
-	countExecutable := make([]uint32, len(acclist))
-	countTotalExecutables := uint32(0)
-
-	for i := uint32(0); i < 4*maxExecutablesTotal; i++ {
-		j := rand.Intn(len(acclist))
-		sender := acclist[j]
-		receiver := acclist[(j+1)%len(acclist)]
+	value := big.NewInt(1000000000000000000)
+	gasLimit := uint64(21000)
+	size := uint32(len(acclist))
+	for i := uint32(0); i < 3*(maxNonExecutablesTotal+maxExecutablesTotal); i++ {
+		sender := acclist[i%size]
+		receiver := acclist[(i+1)%size]
 		nonce, err1 := cl.PendingNonceAt(context.Background(), sender.Address)
 		if err1 != nil {
 			log.Fatal(err1)
 		}
 		fmt.Printf("Gas price %v\n", gasPrice)
-		chainID, err4 := cl.NetworkID(context.Background())
-		if err4 != nil {
-			log.Fatal(err4)
-		}
-		fmt.Printf("ChainId = %v\n", chainID)
 		var data []byte
 		signedTx, err5 := CreateTransaction(ks, sender, receiver, "", nonce, value, data, gasPrice, gasLimit, chainID)
 		if err5 != nil {
@@ -244,25 +241,14 @@ func Scenario3(cl *ethclient.Client, acclist []*accounts.Account, ks *keystore.K
 		if err6 != nil {
 			fmt.Println(err6)
 			//log.Fatal(err6)
-		} else {
-			countExecutable[j]++
-			countTotalExecutables++
-			fmt.Printf("tx sent with hash: %s, nonce: %v, value: %v\n", signedTx.Hash().Hex(), nonce, value)
-			if countTotalExecutables > maxExecutablesTotal {
-				for ind, val := range countExecutable {
-					if val > minExecutablesPerAccount {
-						fmt.Printf("Txs from Account %v might get demoted\n", acclist[ind].Address.Hex())
-					}
-				}
-			}
 		}
 
 	}
 }
 
 func main() {
-	if len(os.Args) != 3 {
-		log.Fatal("Usage: ./TxLifeCycle <NodeRpcAddr> <pathToTestAccountsDirectory>")
+	if len(os.Args) != 4 {
+		log.Fatal("Usage: ./TxLifeCycle <NodeRpcAddr> <pathToTestAccountsDirectory> <ScenarioToRun>")
 	}
 
 	client, err := ethclient.Dial(os.Args[1])
@@ -278,12 +264,20 @@ func main() {
 	if len(accfiles) < 3 {
 		log.Fatal("Need atleast 3 accounts to test all scenarios")
 	}
+
+	scenarioToRun := os.Args[3]
 	ks := keystore.NewKeyStore("./tmp", keystore.StandardScryptN, keystore.StandardScryptP)
 	acclist, err2 := Init(accfiles, ks)
 	if err2 != nil {
 		log.Fatal(err2)
 	}
-	Scenario1(client, acclist, ks)
-	Scenario2(client, acclist, ks)
-	Scenario3(client, acclist, ks)
+	if scenarioToRun == "1" {
+		Scenario1(client, acclist, ks)
+	} else if scenarioToRun == "2" {
+		Scenario2(client, acclist, ks)
+	} else if scenarioToRun == "3" {
+		Scenario3(client, acclist, ks)
+	} else {
+		log.Printf("Unknown test scenario \n")
+	}
 }

@@ -47,13 +47,13 @@ To run the client
 ```
 $ cd tx-lifecycle-test
 
-$ ./tx-lifecycle-test <rpcAddrOfOneOfTheNodes> <pathToAccountsDir>
+$ ./tx-lifecycle-test <rpcAddrOfOneOfTheNodes> <pathToAccountsDir> <ScenarioToTest>
 ```
 
 Lets say rpc addr is http://localhost:8501 .
-and test accounts are in test-accounts in tx-lifecycle-test . To run the test we do
+and test accounts are in test-accounts in tx-lifecycle-test . To run the test for scenario1 we do
 ```
-$ ./tx-lifecycle-test http://localhost:8501 test-accounts
+$ ./tx-lifecycle-test http://localhost:8501 test-accounts 1 
 
 ```
 
@@ -102,13 +102,24 @@ Sending multiple transactions from a single account with gap between nonces.
 
 * Txs will be added to future queue, won't be promoted unless transaction with gap nonces are sent.
 * Txs with nonces too far in future will be rejected
+* Say current pending nonce for a account is x, send muliple Tx from account with consecutive nonces starting from x+1.
+* Wait for 2-3 blocktime.
+* All Txs will be in future queue.
+* Now send a transaction with nonce x, All tx send in previous step will be promoted to pending and included in block eventually.
 
 #### Scenario3
 
 Sending multiple transactions from different accounts. 
 
-* Sending tx with different gas prices to see order in which transactions are mined
-* To make sure all txs are not included in single block, play with block gasLimit or timeout which determines the wait a miner does for a new tx before committing to current snapshot for mining.
+* This testcase to see how txpool config parameters govenn txpool management.
+* accountslots determines minimum allowed pending txs from a account.
+* globalslots determines maximum allowed pending tx from all accounts to prevent DOS.
+  * if total size of pending list is above globalslots value, non-local txs are moved to queue with an attempt to honour accountslots if possible.
+* accountqueue is cap on no. of txs that can be put to future queue for a account and globalqueue is maximum cap overall
+  * non-local tx are discarded if total queued txs from a single account are above accountqueue. If globalqueue limit is crossed, then non-local txs are removed based on priority
+* Test involves sending lot of txs from different accounts, such that set limits of above parameters are crossed.
+* make sure to have large enough block time to allow large number of txs sent before they are mined in block and removed from pool.
+* logs of node other than the one to which txs are sent should be observed. Since above params only remote tx are evicted or demoted by the policy
 
 
 ### References
