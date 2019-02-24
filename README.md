@@ -119,7 +119,7 @@ Sending multiple transactions from different accounts.
   * non-local tx are discarded if total queued txs from a single account are above accountqueue. If globalqueue limit is crossed, then non-local txs are removed based on priority
 * Test involves sending lot of txs from different accounts, such that set limits of above parameters are crossed.
 * make sure to have large enough block time to allow large number of txs sent before they are mined in block and removed from pool.
-* logs of node other than the one to which txs are sent should be observed. Since above params only remote tx are evicted or demoted by the policy
+* logs of node other than the one to which txs are sent should be observed because local txs arent affected by above txpool management policy.
 
 
 ### References
