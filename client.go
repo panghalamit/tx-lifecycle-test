@@ -214,12 +214,7 @@ func Scenario3(cl *ethclient.Client, acclist []*accounts.Account, ks *keystore.K
 		log.Fatal(err4)
 	}
 	fmt.Printf("ChainId = %v\n", chainID)
-	toss := rand.Float32()
-	if toss < 0.3 {
-		gasPrice = big.NewInt(2)
-	} else if toss > 0.7 {
-		gasPrice = big.NewInt(3)
-	}
+
 	value := big.NewInt(1000000000000000000)
 	gasLimit := uint64(21000)
 	size := uint32(len(acclist))
@@ -230,6 +225,7 @@ func Scenario3(cl *ethclient.Client, acclist []*accounts.Account, ks *keystore.K
 		if err1 != nil {
 			log.Fatal(err1)
 		}
+		gasPrice = big.NewInt(int64(i))
 		fmt.Printf("Gas price %v\n", gasPrice)
 		var data []byte
 		signedTx, err5 := CreateTransaction(ks, sender, receiver, "", nonce, value, data, gasPrice, gasLimit, chainID)

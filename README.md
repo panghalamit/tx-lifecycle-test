@@ -118,6 +118,8 @@ Sending multiple transactions from different accounts.
 * accountqueue is cap on no. of txs that can be put to future queue for a account and globalqueue is maximum cap overall
   * non-local tx are discarded if total queued txs from a single account are above accountqueue. If globalqueue limit is crossed, then non-local txs are removed based on priority
 * Test involves sending lot of txs from different accounts, such that set limits of above parameters are crossed.
+  * for testing tx removed from pending list to queue due to accountslot limit, txs with increasing gas prices must be passed such that they cross globalslot and accountslot limits but not accountqueue and globalqueue. (txs are first added to queue and checked if they can be promoted, so for to see demotion in action new txs must be higher gas prices)
+  * for testing tx removed from queue, tx must be passed with higher gas prices which cross, accountqueue and globalqueue limits
 * make sure to have large enough block time to allow large number of txs sent before they are mined in block and removed from pool.
 * logs of node other than the one to which txs are sent should be observed because local txs arent affected by above txpool management policy.
 
