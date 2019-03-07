@@ -1,0 +1,22 @@
+{
+    "pathToAccountsDir" : "./test-accounts",
+    "scenario1" : {
+        "value" : 1000000000000000000,
+        "gasLimit":  21000
+    },
+    "scenario2" : {
+        "value" : 1000000000000000000,
+        "gasLimit" : 21000,
+        "numTxs" : 10,
+        "rescueTxTimeout" : 2
+    },
+    "scenario3" : {
+        "value" : 1000000000000000000,
+        "gasLimit" : 21000,
+        "minExecutablesPerAccount" : 5,
+        "maxExecutablesTotal" : 14,
+        "maxNonExecutablesPerAccount" : 5,
+        "maxNonExecuatblesTotal":14,
+        "numTxs" : 57
+    }
+}

@@ -55,7 +55,7 @@ $ ./tx-lifecycle-test <rpcAddrOfOneOfTheNodes> <ScenarioToTest>
 Lets say rpc addr is http://localhost:8501 .
 and test accounts are in test-accounts in tx-lifecycle-test . To run the test for scenario1 we do
 ```
-$ ./tx-lifecycle-test http://localhost:8501 test-accounts 1 
+$ ./tx-lifecycle-test http://localhost:8501  1 
 
 ```
 
