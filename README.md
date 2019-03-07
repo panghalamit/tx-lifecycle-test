@@ -113,7 +113,7 @@ Sending multiple transactions from a single account with gap between nonces.
 
 Sending multiple transactions from different accounts. 
 
-* This testcase to see how txpool config parameters govenn txpool management.
+* This testcase to see how txpool config parameters govern txpool management.
 * accountslots determines minimum allowed pending txs from a account.
 * globalslots determines maximum allowed pending tx from all accounts to prevent DOS.
   * if total size of pending list is above globalslots value, non-local txs are moved to queue with an attempt to honour accountslots if possible.
