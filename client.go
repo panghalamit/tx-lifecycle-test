@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -17,7 +18,49 @@ import (
 	"github.com/panghalamit/go-ethereum/ethclient"
 )
 
-const ()
+type TestConfig struct {
+	PathToAccountsDir string
+	Scenario1         Scenario1Config
+	Scenario2         Scenario2Config
+	Scenario3         Scenario3Config
+}
+
+type Scenario1Config struct {
+	Value    json.Number
+	GasLimit uint64
+}
+
+type Scenario2Config struct {
+	Value           json.Number
+	GasLimit        uint64
+	NumTxs          int
+	RescueTxTimeout int
+}
+
+type Scenario3Config struct {
+	Value                       json.Number
+	GasLimit                    uint64
+	MinExecutablesPerAccount    uint32
+	MaxExecutablesTotal         uint32
+	MaxNonExecutablesPerAccount uint32
+	MaxNonExecutablesTotal      uint32
+	NumTxs                      int
+}
+
+var config TestConfig
+
+// InitTestConfig inititializes config parameters from json file
+func InitTestConfig() (*TestConfig, error) {
+	jsonBytes, err := ioutil.ReadFile("config-test.json")
+	if err != nil {
+		return &config, err
+	}
+	err1 := json.Unmarshal(jsonBytes, &config)
+	if err1 != nil {
+		return &config, err1
+	}
+	return &config, nil
+}
 
 // ImportKsAccount imports accounts into keystore given path to account's file
 func ImportKsAccount(ks *keystore.KeyStore, pathToAccount string) (*accounts.Account, error) {
@@ -28,7 +71,7 @@ func ImportKsAccount(ks *keystore.KeyStore, pathToAccount string) (*accounts.Acc
 	pwd := ""
 	account, err := ks.Import(jsonBytes, pwd, pwd)
 	if err != nil {
-		log.Fatal(err)
+		return &accounts.Account{}, err
 	}
 	return &account, nil
 }
@@ -86,8 +129,11 @@ func Scenario1(cl *ethclient.Client, acclist []*accounts.Account, ks *keystore.K
 	fmt.Printf("Balance of account %s : %v \n", sender.Address.Hex(), balance)
 
 	fmt.Printf("Nonce value for account %s : %v\n", sender.Address.Hex(), nonce)
-	value := big.NewInt(1000000000000000000)
-	gasLimit := uint64(21000)
+	value, ok := new(big.Int).SetString(config.Scenario1.Value.String(), 10)
+	if !ok {
+		value = big.NewInt(1000000000000000000)
+	}
+	gasLimit := config.Scenario1.GasLimit
 	gasPrice, err3 := cl.SuggestGasPrice(context.Background())
 	if err3 != nil {
 		fmt.Printf("err3\n")
@@ -129,14 +175,17 @@ func Scenario2(cl *ethclient.Client, acclist []*accounts.Account, ks *keystore.K
 	if err2 != nil {
 		log.Fatal(err2)
 	}
-	value := big.NewInt(1000000000000000000)
-	gasLimit := uint64(21000)
+	value, ok := new(big.Int).SetString(config.Scenario2.Value.String(), 10)
+	if !ok {
+		value = big.NewInt(1000000000000000000)
+	}
+	gasLimit := config.Scenario2.GasLimit
 	gasPrice, err3 := cl.SuggestGasPrice(context.Background())
 	var data []byte
 	if err3 != nil {
 		log.Fatal(err3)
 	}
-	for i := 0; i < 10; i++ {
+	for i := 0; i < config.Scenario2.NumTxs; i++ {
 		toss := rand.Float32()
 		if toss < 0.3 {
 			gasPrice = big.NewInt(2)
@@ -169,7 +218,7 @@ func Scenario2(cl *ethclient.Client, acclist []*accounts.Account, ks *keystore.K
 	blockNumber := currBlockHeader.Number.Uint64()
 
 	fmt.Printf("Using block height as timeout to send rescue Tx (Tx with gap value as nonce)\n")
-	for curr := blockNumber; curr < blockNumber+2; {
+	for curr := blockNumber; curr < blockNumber+uint64(config.Scenario2.RescueTxTimeout); {
 		// get latest block
 		currBlockHeader, err6 = cl.HeaderByNumber(context.Background(), nil)
 		if err6 != nil {
@@ -180,7 +229,7 @@ func Scenario2(cl *ethclient.Client, acclist []*accounts.Account, ks *keystore.K
 		fmt.Printf("Block height %v \n", curr)
 		time.Sleep(15 * time.Second)
 	}
-	// wait for 3 block times before sending rescue tx
+	// wait for config.Scenario2.RescueTxTimeout block times before sending rescue tx
 	signedRescueTx, err7 := CreateTransaction(ks, sender, receiver, "", nonce, value, data, gasPrice, gasLimit, chainID)
 	if err7 != nil {
 		log.Fatal(err7)
@@ -199,10 +248,10 @@ func Scenario2(cl *ethclient.Client, acclist []*accounts.Account, ks *keystore.K
 func Scenario3(cl *ethclient.Client, acclist []*accounts.Account, ks *keystore.KeyStore) {
 	fmt.Printf("\n-------------------------Scenario3 : Sending multiple transfer transactions from different accounts-------------------------\n")
 	//set the same value in txpool config
-	minExecutablesPerAccount := uint32(5)
-	maxExecutablesTotal := uint32(14)
-	maxNonExecutablesPerAccount := uint32(5)
-	maxNonExecutablesTotal := uint32(14)
+	minExecutablesPerAccount := config.Scenario3.MinExecutablesPerAccount
+	maxExecutablesTotal := config.Scenario3.MaxExecutablesTotal
+	maxNonExecutablesPerAccount := config.Scenario3.MaxNonExecutablesPerAccount
+	maxNonExecutablesTotal := config.Scenario3.MaxNonExecutablesTotal
 
 	fmt.Printf("Testing for txpool config values as, accountslots : %v, globalslots : %v, accountqueue : %v, globalqueue : %v  \n", minExecutablesPerAccount, maxExecutablesTotal, maxNonExecutablesPerAccount, maxNonExecutablesTotal)
 	gasPrice, err3 := cl.SuggestGasPrice(context.Background())
@@ -215,10 +264,13 @@ func Scenario3(cl *ethclient.Client, acclist []*accounts.Account, ks *keystore.K
 	}
 	fmt.Printf("ChainId = %v\n", chainID)
 
-	value := big.NewInt(1000000000000000000)
-	gasLimit := uint64(21000)
+	value, ok := new(big.Int).SetString(config.Scenario3.Value.String(), 10)
+	if !ok {
+		value = big.NewInt(1000000000000000000)
+	}
+	gasLimit := config.Scenario3.GasLimit
 	size := uint32(len(acclist))
-	for i := uint32(0); i < 3*(maxNonExecutablesTotal+maxExecutablesTotal); i++ {
+	for i := uint32(0); i < uint32(config.Scenario3.NumTxs); i++ {
 		sender := acclist[i%size]
 		receiver := acclist[(i+1)%size]
 		nonce, err1 := cl.PendingNonceAt(context.Background(), sender.Address)
@@ -243,17 +295,22 @@ func Scenario3(cl *ethclient.Client, acclist []*accounts.Account, ks *keystore.K
 }
 
 func main() {
-	if len(os.Args) != 4 {
-		log.Fatal("Usage: ./TxLifeCycle <NodeRpcAddr> <pathToTestAccountsDirectory> <ScenarioToRun>")
+	if len(os.Args) != 3 {
+		log.Fatal("Usage: ./TxLifeCycle <NodeRpcAddr> <ScenarioToRun>")
 	}
+
+	_, err3 := InitTestConfig()
+	if err3 != nil {
+		log.Fatal(err3)
+	}
+	fmt.Println("Successfully Read Test Configuration from config file")
 
 	client, err := ethclient.Dial(os.Args[1])
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Println("We connected to a local node")
-
-	accfiles, err1 := FilePathWalkDir(os.Args[2])
+	accfiles, err1 := FilePathWalkDir(config.PathToAccountsDir)
 	if err1 != nil {
 		log.Fatal(err1)
 	}
@@ -261,7 +318,7 @@ func main() {
 		log.Fatal("Need atleast 3 accounts to test all scenarios")
 	}
 
-	scenarioToRun := os.Args[3]
+	scenarioToRun := os.Args[2]
 	ks := keystore.NewKeyStore("./tmp", keystore.StandardScryptN, keystore.StandardScryptP)
 	acclist, err2 := Init(accfiles, ks)
 	if err2 != nil {
@@ -273,7 +330,5 @@ func main() {
 		Scenario2(client, acclist, ks)
 	} else if scenarioToRun == "3" {
 		Scenario3(client, acclist, ks)
-	} else {
-		log.Printf("Unknown test scenario \n")
 	}
 }
