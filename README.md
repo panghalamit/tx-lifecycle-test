@@ -42,12 +42,14 @@ Follow the instructions given [here](https://hackernoon.com/setup-your-own-priva
 
 #### Running Test
 
+set the config paramaters for each scenario in config-test.json
+
 To run the client
 
 ```
 $ cd tx-lifecycle-test
 
-$ ./tx-lifecycle-test <rpcAddrOfOneOfTheNodes> <pathToAccountsDir> <ScenarioToTest>
+$ ./tx-lifecycle-test <rpcAddrOfOneOfTheNodes> <ScenarioToTest>
 ```
 
 Lets say rpc addr is http://localhost:8501 .
